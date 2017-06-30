@@ -5,104 +5,103 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: bmoodley <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2017/06/18 10:45:49 by bmoodley          #+#    #+#             */
-/*   Updated: 2017/06/18 15:34:47 by bmoodley         ###   ########.fr       */
+/*   Created: 2017/06/25 15:46:04 by bmoodley          #+#    #+#             */
+/*   Updated: 2017/06/30 10:07:36 by bmoodley         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <string.h>
+#include "libft/libft.h"
 
-//static void		new_expand(char *new)
-//{
-//
-//}
-
-static void		buffer_shift(char *buffer)
+static	void	new_expand(char **new, char *buffer, int *pos, int *i)
 {
-	int	i;
+	char		*temp;
+	char		*temp2;
 
-	i = 0;
-	while (i < BUFF_SIZE)
+	if (*new == NULL)
 	{
-		buffer[i] = buffer[i + 1];
-		i++;
-	}
-	buffer[BUFF_SIZE - 1] = '\0';
-}
-
-static int		decision_loop(char *buffer, char *newi, int *i)
-{
-	if (buffer[0] == '\n')
-	{
-		*newi = '\0';
-		buffer_shift(buffer);
-		return (0);
-	}
-	else if (buffer[0] == '\0')
-	{
+		*new = ft_strsub(buffer, *pos, *i);
 	}
 	else
 	{
-		*newi = buffer[0];
-		buffer_shift(buffer);
-		(*i)++;
+		temp2 = ft_strsub(buffer, *pos, *i);
+		temp = ft_strdup(*new);
+		free(*new);
+		*new = ft_strjoin(temp, temp2);
+		free(temp);
+		free(temp2);
 	}
-	return (1);
 }
 
-int get_next_line(const int fd, char **line)
+static	int		buf_parse(char **new, char *buffer, int *pos, int *r)
 {
-	int i;
-	static int r = 0;
-	static char buffer[BUFF_SIZE];
-	char *new;
+	int			i;
 
-	new = (char *)malloc(sizeof(char) * 200);
 	i = 0;
-	*line = new;
+	while (buffer[i + *pos] != '\0')
+	{
+		if (buffer[i + *pos] != '\n')
+		{
+			(i)++;
+		}
+		else if (buffer[i + *pos] == '\n')
+		{
+			new_expand(new, buffer, pos, &i);
+			(i)++;
+			*pos = *pos + i;
+			return (1);
+		}
+	}
+	new_expand(new, buffer, pos, &i);
+	*pos = 0;
+	i = 0;
+	*r = -2;
+	return (0);
+}
+
+int				get_next_line(const int fd, char **line)
+{
+	static char	buffer[BUFF_SIZE + 1];
+	static int	r = -2;
+	static int	pos = 0;
+	char		*new;
+
+	new = NULL;
 	while (1)
 	{
-		if (strlen(buffer) < 1)
-			r = read(fd, buffer, BUFF_SIZE);
-		while (strlen(buffer) > 0)
+		if (pos == BUFF_SIZE || r == -2)
 		{
-			if (decision_loop(buffer, &new[i], &i) == 0)
+			ft_bzero(buffer, BUFF_SIZE + 1);
+			r = read(fd, buffer, BUFF_SIZE);
+			pos = 0;
+		}
+		else if (r == -1)
+			return (-1);
+		else if (r == 0)
+			return (0);
+		else
+			while (buf_parse(&new, buffer, &pos, &r))
 			{
-				i = 0;
+				*line = new;
 				return (1);
 			}
-		}
-		if (r == 0 && strlen(buffer) == 0)
-			return (0);
 	}
 }
 
 int main()
 {
-	/*
-	int fd;
-	char *line;
-	fd = open("test", O_RDONLY);
-	while(get_next_line(fd, &line) == 1)
-	{
-		printf("%s", line);
-	}
-	*/
-	
 	int fd;
 	char **line;
-	int i = 0;
 
-	fd = open("Text.txt", O_RDONLY);
-	while (get_next_line(fd, line) == 1)
+	*line = NULL;
+	fd = open("bible.txt", O_RDONLY);
+	while ((get_next_line(fd, line)) == 1)
 	{
-		printf("%d |%s|\n", i, *line);
-		i++;
+		printf("%s\n", *line);
 		free(*line);
 	}
+	free(*line);
+	free(line);
+	close(fd);
 	return (0);
 }
